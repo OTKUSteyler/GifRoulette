@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-import { definePluginSettings } from "@lib/api/settings";
-import { definePlugin, OptionType } from "@lib/plugins";
+import { definePlugin } from "@lib/plugins";
 import { findByProps } from "@metro";
 import { ApplicationCommandInputType, ApplicationCommandType } from "@lib/api/commands/types";
+import { storage } from "@lib/api/storage";
 
 const UserSettingsActionCreators = findByProps("FrecencyUserSettingsActionCreators");
 
@@ -38,15 +38,6 @@ function getMessage(ctx: any, pingOwnerEnabled: boolean) {
     return `${chosenGifUrl}${ownerPing}`;
 }
 
-const settings = definePluginSettings({
-    pingOwnerChance: {
-        type: OptionType.BOOLEAN,
-        label: "Ping Server Owner",
-        description: "If there should be a 1 in 10 chance to ping the owner of the server (oh no)",
-        default: true
-    }
-});
-
 export default definePlugin({
     name: "GifRoulette",
     description: "Adds a /gifroulette slash command to send a random GIF from your favorites, with a one in ten chance to ping the server owner",
@@ -56,7 +47,6 @@ export default definePlugin({
             id: 0n // Original Equicord author
         }
     ],
-    settings,
     commands: [
         {
             name: "gifroulette",
@@ -67,12 +57,23 @@ export default definePlugin({
             inputType: ApplicationCommandInputType.BUILT_IN,
             options: [],
             execute: async (args: any[], ctx: any) => {
-                const content = getMessage(ctx, settings.get("pingOwnerChance", true));
+                // Get the ping setting from storage, default to true
+                const pingOwnerEnabled = storage.getBoolean("GifRoulette_pingOwner", true);
+                const content = getMessage(ctx, pingOwnerEnabled);
                 
                 return {
                     content: content
                 };
             }
         }
-    ]
+    ],
+    onLoad() {
+        // Initialize the setting if it doesn't exist
+        if (storage.getBoolean("GifRoulette_pingOwner") === undefined) {
+            storage.set("GifRoulette_pingOwner", true);
+        }
+    },
+    onUnload() {
+        // Cleanup if needed
+    }
 });
