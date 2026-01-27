@@ -1,3 +1,9 @@
+/*
+ * Kettu, a Discord mobile app client modification
+ * Copyright (c) 2025 Kettu Contributors
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 import { definePluginSettings } from "@lib/api/settings";
 import { definePlugin, OptionType } from "@lib/plugins";
 import { findByProps } from "@metro";
@@ -5,7 +11,7 @@ import { ApplicationCommandInputType, ApplicationCommandType } from "@lib/api/co
 
 const UserSettingsActionCreators = findByProps("FrecencyUserSettingsActionCreators");
 
-function getMessage(ctx: any) {
+function getMessage(ctx: any, pingOwnerEnabled: boolean) {
     const frecencyStore = UserSettingsActionCreators?.FrecencyUserSettingsActionCreators?.getCurrentValue?.();
     
     if (!frecencyStore?.favoriteGifs?.gifs) {
@@ -24,7 +30,7 @@ function getMessage(ctx: any) {
     // Check if we're in a guild and should ping the owner
     if (ctx?.channel?.guild_id) {
         const guild = ctx.guild;
-        if (guild?.ownerId && settings.pingOwnerChance && Math.random() <= 0.1) {
+        if (guild?.ownerId && pingOwnerEnabled && Math.random() <= 0.1) {
             ownerPing = ` <@${guild.ownerId}>`;
         }
     }
@@ -61,7 +67,7 @@ export default definePlugin({
             inputType: ApplicationCommandInputType.BUILT_IN,
             options: [],
             execute: async (args: any[], ctx: any) => {
-                const content = getMessage(ctx);
+                const content = getMessage(ctx, settings.get("pingOwnerChance", true));
                 
                 return {
                     content: content
