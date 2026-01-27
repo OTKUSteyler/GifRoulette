@@ -1,27 +1,21 @@
-/*
- * Kettu, a Discord mobile app client modification
- * Copyright (c) 2025 Kettu Contributors
- * SPDX-License-Identifier: BSD-3-Clause
- */
+import { registerCommand } from "@vendetta/commands";
+import { findByProps } from "@vendetta/metro";
+import { storage } from "@vendetta/plugin";
 
-import { definePlugin } from "@lib/plugins";
-import { findByProps } from "@metro";
-import { ApplicationCommandInputType, ApplicationCommandType } from "@lib/api/commands/types";
-import { storage } from "@lib/api/storage";
-
+const messageUtil = findByProps("sendMessage", "editMessage");
 const UserSettingsActionCreators = findByProps("FrecencyUserSettingsActionCreators");
 
-function getMessage(ctx: any, pingOwnerEnabled: boolean) {
+function getMessage(ctx) {
     const frecencyStore = UserSettingsActionCreators?.FrecencyUserSettingsActionCreators?.getCurrentValue?.();
     
     if (!frecencyStore?.favoriteGifs?.gifs) {
-        return "You don't have any favorite GIFs! Add some by favoriting GIFs in Discord first.";
+        return "❌ You don't have any favorite GIFs! Add some by favoriting GIFs in Discord first.";
     }
 
     const gifsArray = Object.keys(frecencyStore.favoriteGifs.gifs);
     
     if (gifsArray.length === 0) {
-        return "You don't have any favorite GIFs! Add some by favoriting GIFs in Discord first.";
+        return "❌ You don't have any favorite GIFs! Add some by favoriting GIFs in Discord first.";
     }
 
     const chosenGifUrl = gifsArray[Math.floor(Math.random() * gifsArray.length)];
@@ -29,7 +23,13 @@ function getMessage(ctx: any, pingOwnerEnabled: boolean) {
 
     // Check if we're in a guild and should ping the owner
     if (ctx?.channel?.guild_id) {
-        const guild = ctx.guild;
+        // Try to get guild info
+        const GuildStore = findByProps("getGuild");
+        const guild = GuildStore?.getGuild?.(ctx.channel.guild_id);
+        
+        // Get the ping setting from storage, default to true
+        const pingOwnerEnabled = storage.pingOwner ?? true;
+        
         if (guild?.ownerId && pingOwnerEnabled && Math.random() <= 0.1) {
             ownerPing = ` <@${guild.ownerId}>`;
         }
@@ -38,42 +38,36 @@ function getMessage(ctx: any, pingOwnerEnabled: boolean) {
     return `${chosenGifUrl}${ownerPing}`;
 }
 
-export default definePlugin({
-    name: "GifRoulette",
-    description: "Adds a /gifroulette slash command to send a random GIF from your favorites, with a one in ten chance to ping the server owner",
-    authors: [
-        {
-            name: "Samwich",
-            id: 0n // Original Equicord author
-        }
-    ],
-    commands: [
-        {
-            name: "gifroulette",
-            displayName: "gifroulette",
-            description: "Tempt fate and send a random GIF from your favorites",
-            displayDescription: "Tempt fate and send a random GIF from your favorites",
-            type: ApplicationCommandType.CHAT,
-            inputType: ApplicationCommandInputType.BUILT_IN,
-            options: [],
-            execute: async (args: any[], ctx: any) => {
-                // Get the ping setting from storage, default to true
-                const pingOwnerEnabled = storage.getBoolean("GifRoulette_pingOwner", true);
-                const content = getMessage(ctx, pingOwnerEnabled);
-                
-                return {
-                    content: content
-                };
-            }
-        }
-    ],
-    onLoad() {
+let unregisterCommand;
+
+export default {
+    onLoad: () => {
         // Initialize the setting if it doesn't exist
-        if (storage.getBoolean("GifRoulette_pingOwner") === undefined) {
-            storage.set("GifRoulette_pingOwner", true);
+        if (storage.pingOwner === undefined) {
+            storage.pingOwner = true;
         }
+
+        unregisterCommand = registerCommand({
+            name: "gifroulette",
+            displayName: "GIF Roulette",
+            description: "Sends a random GIF from your favorites (1 in 10 chance to ping server owner!)",
+            options: [],
+            execute: async (args, ctx) => {
+                const content = getMessage(ctx);
+                
+                messageUtil.sendMessage(ctx.channel.id, { 
+                    content: content
+                });
+            },
+            applicationId: "-1",
+            inputType: 1,
+            type: 1,
+        });
     },
-    onUnload() {
-        // Cleanup if needed
+    
+    onUnload: () => {
+        if (unregisterCommand) {
+            unregisterCommand();
+        }
     }
-});
+};
