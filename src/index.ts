@@ -34,10 +34,12 @@ export default {
             execute: async (args, ctx) => {
                 const content = getMessage();
                 
-                messageUtil.sendMessage(ctx.channel.id, { 
-                    content: content,
-                    nonce: Math.random().toString(36).substring(2)
-                });
+                messageUtil.sendMessage(
+                    ctx.channel.id,
+                    { content: content },
+                    void 0,
+                    { nonce: Date.now().toString() }
+                );
             },
             applicationId: "-1",
             inputType: 1,
