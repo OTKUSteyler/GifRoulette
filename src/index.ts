@@ -35,7 +35,8 @@ export default {
                 const content = getMessage();
                 
                 messageUtil.sendMessage(ctx.channel.id, { 
-                    content: content
+                    content: content,
+                    nonce: Math.random().toString(36).substring(2)
                 });
             },
             applicationId: "-1",
